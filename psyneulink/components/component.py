@@ -843,6 +843,7 @@ class Component(object, metaclass=ComponentsMeta):
 
     class Params(ParamsSpec):
         variable = Param(np.array([0]), read_only=True)
+        value = Param(np.array([0]), read_only=True)
         function = None
         context = Param(None, user=False)
 
