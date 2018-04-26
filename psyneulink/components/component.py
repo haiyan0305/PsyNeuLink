@@ -403,7 +403,7 @@ from psyneulink.globals.log import LogCondition
 from psyneulink.globals.preferences.componentpreferenceset import ComponentPreferenceSet, kpVerbosePref
 from psyneulink.globals.preferences.preferenceset import PreferenceEntry, PreferenceLevel, PreferenceSet
 from psyneulink.globals.registry import register_category
-from psyneulink.globals.utilities import ContentAddressableList, ReadOnlyOrderedDict, convert_all_elements_to_np_array, convert_to_np_array, get_deepcopy_with_shared_keys, is_instance_or_subclass, is_matrix, iscompatible, kwCompatibilityLength, object_has_single_value, prune_unused_args
+from psyneulink.globals.utilities import ContentAddressableList, ParamsSpec, ReadOnlyOrderedDict, convert_all_elements_to_np_array, convert_to_np_array, get_alias_property_getter, get_alias_property_setter, get_deepcopy_with_shared_keys, is_instance_or_subclass, is_matrix, iscompatible, kwCompatibilityLength, object_has_single_value, prune_unused_args
 
 __all__ = [
     'Component', 'COMPONENT_BASE_CLASS', 'component_keywords', 'ComponentError', 'ComponentLog',
@@ -473,6 +473,40 @@ class DefaultsFlexibility(Enum):
     RIGID = 1
     INCREASE_DIMENSION = 2
 
+
+class ClassDefaults(ParamsSpec):
+    def __init__(self, owner):
+        self._owner = owner
+
+    def __getattr__(self, attr):
+        return getattr(self._owner.parameters, attr).default_value
+
+    def __setattr__(self, attr, value):
+        if (attr[:1] != '_'):
+            getattr(self._owner.parameters, attr).default_value = value
+        else:
+            super().__setattr__(attr, value)
+
+    def values(self):
+        return {k: v.default_value for (k, v) in self._owner.parameters.values().items()}
+
+
+class InstanceDefaults(ParamsSpec):
+    def __init__(self, owner, class_defaults=None, **kwargs):
+        self._owner = owner
+        if class_defaults is None:
+            try:
+                self._class_defaults = owner.ClassDefaults
+            except AttributeError:
+                raise ComponentError('InstanceDefaults instance {0} must be created with reference to a class-level Defaults instance'.format(self))
+        else:
+            self._class_defaults = class_defaults
+
+        for k, v in self._class_defaults.values().items():
+            try:
+                setattr(self, k, kwargs[k])
+            except KeyError:
+                setattr(self, k, v)
 
 # Prototype for implementing params as objects rather than dicts
 # class Params(object):
@@ -549,11 +583,49 @@ parameter_keywords = set()
 #     kpReportOutputPref: PreferenceEntry(True,PreferenceLevel.INSTANCE)})
 
 
-# Used as templates for requiredParamClassDefaultTypes for COMPONENT:
-class Params(object):
-    def __init__(self, **kwargs):
-        for arg in kwargs:
-            self.__setattr__(arg, kwargs[arg])
+class Param(types.SimpleNamespace):
+    def __init__(self, default_value=None, name=None, stateful=True, read_only=False, aliases=None, _aliases=None, _owner=None):
+        if isinstance(aliases, str):
+            aliases = [aliases]
+        super().__init__(default_value=default_value, name=name, stateful=stateful, read_only=read_only, aliases=aliases, _aliases=_aliases, _owner=_owner)
+
+    def __repr__(self):
+        # modified from types.SimpleNamespace to exclude _-prefixed attrs
+        keys = sorted({k for k in self.__dict__ if k[0] != '_'})
+        items = ("{}={!r}".format(k, self.__dict__[k]) for k in keys)
+        return "{}({})".format(type(self).__name__, ", ".join(items))
+
+    def _register_alias(self, name):
+        if self.aliases is None:
+            self.aliases = [name]
+        elif name not in self.aliases:
+            self.aliases.append(name)
+
+
+class _ParamAliasMeta(type):
+    unshared_attrs = ['name', 'aliases']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for k in Param().__dict__:
+            if k not in self.unshared_attrs:
+                setattr(
+                    self,
+                    k,
+                    property(
+                        fget=get_alias_property_getter(k, attr='source'),
+                        fset=get_alias_property_setter(k, attr='source')
+                    )
+                )
+
+
+class ParamAlias(types.SimpleNamespace, metaclass=_ParamAliasMeta):
+    def __init__(self, source=None, name=None):
+        super().__init__(source=source, name=name)
+        try:
+            source._register_alias(name)
+        except AttributeError:
+            pass
 
 
 class dummy_class:
@@ -581,8 +653,19 @@ class ComponentError(Exception):
 
 # *****************************************   COMPONENT CLASS  ********************************************************
 
+class ComponentsMeta(type):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-class Component(object):
+        self.ClassDefaults = ClassDefaults(owner=self)
+        try:
+            parent = self.__mro__[1].parameters
+        except AttributeError:
+            parent = None
+        self.parameters = self.Params(owner=self, parent=parent)
+
+
+class Component(object, metaclass=ComponentsMeta):
     """Base class for Component.
 
     .. note::
@@ -758,86 +841,58 @@ class Component(object):
     componentCategory = None
     componentType = None
 
-    class _DefaultsAliases:
-        '''
-        Used to create aliases for both ClassDefaults and InstanceDefaults, via properties.
-        e.g. to simply alias foo and bar:
-
-        @property
-        def foo(self):
-            return self.bar
-
-        @foo.setter
-        def foo(self, value):
-            self.bar = value
-
-        '''
-        pass
-
-    class _DefaultsMeta(type, _DefaultsAliases):
-        def __repr__(self):
-            return '{0} :\n{1}'.format(super().__repr__(), str(self))
-
-        def __str__(self):
-            try:
-                return self.show()
-            except TypeError:
-                # InstanceDefaults (and any instance of _DefaultsMeta) does not have a
-                # classmethod show(), so revert to default type repr in this case
-                return super().__repr__()
-
-    class Defaults(metaclass=_DefaultsMeta):
-        def _values(self):
-            return {
-                k: getattr(self, k) for k in dir(self) + dir(type(self))
-                if (k[:1] != '_' and not isinstance(getattr(self, k), (types.MethodType, types.BuiltinMethodType)))
-            }
-
-        def _show(self):
-            vals = self.values()
-            return '(\n\t{0}\n)'.format('\n\t'.join(sorted(['{0} = {1},'.format(k, vals[k]) for k in vals])))
-
-        @classmethod
-        def values(cls):
-            '''
-                Returns
-                -------
-                A dictionary consisting of the non-hidden and non-function attributes
-            '''
-            return cls._values(cls)
-
-        @classmethod
-        def show(cls):
-            '''
-                Returns
-                -------
-                A pretty string version of the non-hidden and non-function attributes
-            '''
-            return cls._show(cls)
-
-    class ClassDefaults(Defaults):
-        def __init__(self):
-            raise TypeError('ClassDefaults is not meant to be instantiated')
-
+    class Params(ParamsSpec):
+        variable = Param(np.array([0]), read_only=True)
         function = None
-        variable = np.array([0])
 
-    class InstanceDefaults(Defaults, _DefaultsAliases):
-        def __init__(self, **kwargs):
+        def __init__(self, owner, parent=None, **kwargs):
+            self._parent = parent
+            self._owner = owner
+
+            for param_name, param_value in self.values().items():
+                # create instance attrs for class attrs
+                if isinstance(param_value, Param):
+                    if param_value.name is None:
+                        param_value.name = param_name
+
+                    if param_name in self.__class__.__dict__:
+                        # this is true when param_name was explicitly
+                        # created as an attribute on the class, which means
+                        # it's overriding inherited behavior
+                        setattr(self, param_name, param_value)
+
+                    if param_value.aliases is not None:
+                        for alias in param_value.aliases:
+                            if not hasattr(self, alias):
+                                setattr(self, alias, ParamAlias(source=getattr(self, param_name), name=alias))
+
+                elif isinstance(param_value, ParamAlias):
+                    if param_value.name is None:
+                        param_value.name = param_name
+                    if isinstance(param_value.source, str):
+                        try:
+                            param_value.source = getattr(self, param_value.source)
+                            param_value.source._register_alias(param_name)
+                        except AttributeError:
+                            # developer error
+                            raise ComponentError(
+                                '{0}: Attempted to create an alias named {1} to {2} but attr {2} does not exist'.format(
+                                    self, param_name, param_value.source
+                                )
+                            )
+                else:
+                    setattr(self, param_name, Param(name=param_name, default_value=param_value, _owner=self))
+
             for param in kwargs:
                 setattr(self, param, kwargs[param])
 
-        def __repr__(self):
-            return '{0} :\n{1}'.format(super().__repr__(), str(self))
-
-        def __str__(self):
-            return self.show()
-
-        def values(self):
-            return self._values()
-
-        def show(self):
-            return self._show()
+        def __getattr__(self, attr):
+            try:
+                return getattr(self._parent, attr)
+            except AttributeError:
+                raise AttributeError(
+                    'No parameter named \'{0}\' found in the parameter hierarchy of {1}'.format(attr, self)
+                ) from None
 
     initMethod = INIT_FULL_EXECUTE_METHOD
 
@@ -926,7 +981,7 @@ class Component(object):
             default_variable = v
             defaults[VARIABLE] = default_variable
 
-        self.instance_defaults = self.InstanceDefaults(**defaults)
+        self.instance_defaults = InstanceDefaults(owner=self, class_defaults=self.ClassDefaults, **defaults)
 
         # These ensure that subclass values are preserved, while allowing them to be referred to below
         self.paramInstanceDefaults = {}

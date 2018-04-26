@@ -437,7 +437,7 @@ class MappingProjection(PathwayProjection_Base):
     className = componentType
     suffix = " " + className
 
-    class ClassDefaults(PathwayProjection_Base.ClassDefaults):
+    class Params(PathwayProjection_Base.Params):
         function = LinearMatrix
 
     classPreferenceLevel = PreferenceLevel.TYPE

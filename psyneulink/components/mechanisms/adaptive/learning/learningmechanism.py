@@ -539,8 +539,7 @@ import numpy as np
 import typecheck as tc
 
 from psyneulink.components.component import parameter_keywords
-from psyneulink.components.functions.function import \
-    BackPropagation, ModulationParam, _is_modulation_param, is_function_type
+from psyneulink.components.functions.function import BackPropagation, ModulationParam, _is_modulation_param, is_function_type
 from psyneulink.components.mechanisms.adaptive.adaptivemechanism import AdaptiveMechanism_Base
 from psyneulink.components.mechanisms.mechanism import Mechanism_Base
 from psyneulink.components.mechanisms.processing.objectivemechanism import ObjectiveMechanism
@@ -549,9 +548,7 @@ from psyneulink.components.states.inputstate import InputState
 from psyneulink.components.states.modulatorysignals.learningsignal import LearningSignal
 from psyneulink.components.states.parameterstate import ParameterState
 from psyneulink.globals.context import ContextFlags
-from psyneulink.globals.keywords import ASSERT, CONTROL_PROJECTIONS, ENABLED, INPUT_STATES, \
-    LEARNED_PARAM, LEARNING, LEARNING_MECHANISM, LEARNING_PROJECTION, LEARNING_SIGNAL, LEARNING_SIGNALS, \
-    MATRIX, NAME, OUTPUT_STATE, OUTPUT_STATES, OWNER_VALUE, PARAMS, PROJECTIONS, SAMPLE, STATE_TYPE, VARIABLE
+from psyneulink.globals.keywords import ASSERT, CONTROL_PROJECTIONS, ENABLED, INPUT_STATES, LEARNED_PARAM, LEARNING, LEARNING_MECHANISM, LEARNING_PROJECTION, LEARNING_SIGNAL, LEARNING_SIGNALS, MATRIX, NAME, OUTPUT_STATE, OUTPUT_STATES, OWNER_VALUE, PARAMS, PROJECTIONS, SAMPLE, STATE_TYPE, VARIABLE
 from psyneulink.globals.preferences.componentpreferenceset import is_pref_set
 from psyneulink.globals.preferences.preferenceset import PreferenceLevel
 from psyneulink.globals.utilities import ContentAddressableList, is_numeric, parameter_spec
@@ -883,7 +880,7 @@ class LearningMechanism(AdaptiveMechanism_Base):
 
     classPreferenceLevel = PreferenceLevel.TYPE
 
-    class ClassDefaults(AdaptiveMechanism_Base.ClassDefaults):
+    class Params(AdaptiveMechanism_Base.Params):
         function = BackPropagation
 
     paramClassDefaults = AdaptiveMechanism_Base.paramClassDefaults.copy()

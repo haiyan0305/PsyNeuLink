@@ -701,7 +701,7 @@ class InputState(State_Base):
     variableEncodingDim = 1
     valueEncodingDim = 1
 
-    class ClassDefaults(State_Base.ClassDefaults):
+    class Params(State_Base.Params):
         function = LinearCombination(operation=SUM, owner=CLASS_DEFAULTS)
 
     paramClassDefaults = State_Base.paramClassDefaults.copy()

@@ -937,7 +937,7 @@ from inspect import isclass
 import numpy as np
 import typecheck as tc
 
-from psyneulink.components.component import Component, function_type, method_type
+from psyneulink.components.component import Component, Param, function_type, method_type
 from psyneulink.components.functions.function import Linear
 from psyneulink.components.shellclasses import Function, Mechanism, Projection, State
 from psyneulink.components.states.inputstate import InputState, DEFER_VARIABLE_SPEC_TO_MECH_MSG
@@ -1291,8 +1291,8 @@ class Mechanism_Base(Mechanism):
     className = componentCategory
     suffix = " " + className
 
-    class ClassDefaults(Mechanism.ClassDefaults):
-        variable = np.array([[0]])
+    class Params(Mechanism.Params):
+        variable = Param(np.array([[0]]), read_only=True)
         function = Linear
 
     registry = MechanismRegistry

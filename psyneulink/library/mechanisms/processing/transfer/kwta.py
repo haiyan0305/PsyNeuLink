@@ -150,6 +150,7 @@ Class Reference
 import logging
 import numbers
 import warnings
+
 from collections import Iterable
 
 import numpy as np
@@ -459,7 +460,7 @@ class KWTA(RecurrentTransferMechanism):
 
     componentType = KWTA
 
-    class ClassDefaults(RecurrentTransferMechanism.ClassDefaults):
+    class Params(RecurrentTransferMechanism.Params):
         function = Logistic
 
     paramClassDefaults = RecurrentTransferMechanism.paramClassDefaults.copy()

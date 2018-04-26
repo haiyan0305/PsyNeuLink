@@ -215,7 +215,7 @@ class AutoAssociativeProjection(MappingProjection):
     className = componentType
     suffix = " " + className
 
-    class ClassDefaults(MappingProjection.ClassDefaults):
+    class Params(MappingProjection.Params):
         variable = np.array([[0]])    # function is always LinearMatrix that requires 1D input
 
     classPreferenceLevel = PreferenceLevel.TYPE

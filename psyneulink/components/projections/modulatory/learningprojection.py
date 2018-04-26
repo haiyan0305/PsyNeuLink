@@ -404,7 +404,7 @@ class LearningProjection(ModulatoryProjection_Base):
         sender=[LEARNING_SIGNAL]
         receiver=[PARAMETER_STATE]
 
-    class ClassDefaults(ModulatoryProjection_Base.ClassDefaults):
+    class Params(ModulatoryProjection_Base.Params):
         function = Linear
 
     paramClassDefaults = Projection_Base.paramClassDefaults.copy()

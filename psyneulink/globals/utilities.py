@@ -79,6 +79,7 @@ import copy
 import inspect
 import logging
 import numbers
+import types
 import warnings
 
 from enum import Enum, EnumMeta, IntEnum
@@ -174,7 +175,6 @@ class AutoNumber(IntEnum):
         obj = int.__new__(component_type)
         obj._value_ = value
         return obj
-
 
 # ******************************** GLOBAL STRUCTURES, CONSTANTS AND METHODS  *******************************************
 
@@ -646,6 +646,50 @@ def get_deepcopy_with_shared_keys(shared_keys_iter):
         return result
 
     return __deepcopy__
+
+
+def get_alias_property_getter(name, attr=None):
+    if attr is not None:
+        def getter(obj):
+            return getattr(getattr(obj, attr), name)
+    else:
+        def getter(obj):
+            return getattr(obj, name)
+
+    return getter
+
+
+def get_alias_property_setter(name, attr=None):
+    if attr is not None:
+        def setter(obj, value):
+            setattr(getattr(obj, attr), name, value)
+    else:
+        def setter(obj, value):
+            setattr(obj, name, value)
+
+    return setter
+
+
+class ParamsSpec:
+    _deepcopy_shared_keys = ['_owner']
+
+    def __repr__(self):
+        return '{0} :\n{1}'.format(super().__repr__(), str(self))
+
+    def __str__(self):
+        return self.show()
+
+    __deepcopy__ = get_deepcopy_with_shared_keys(_deepcopy_shared_keys)
+
+    def values(self):
+        return {
+            k: getattr(self, k) for k in dir(self) + dir(type(self))
+            if (k[:1] != '_' and not isinstance(getattr(self, k), (types.MethodType, types.BuiltinMethodType)))
+        }
+
+    def show(self):
+        vals = self.values()
+        return '(\n\t{0}\n)'.format('\n\t'.join(sorted(['{0} = {1},'.format(k, vals[k]) for k in vals])))
 
 
 #region NUMPY ARRAY METHODS ******************************************************************************************

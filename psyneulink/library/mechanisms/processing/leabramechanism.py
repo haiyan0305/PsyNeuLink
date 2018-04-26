@@ -104,8 +104,7 @@ from psyneulink.components.mechanisms.mechanism import Mechanism_Base
 from psyneulink.components.mechanisms.processing.processingmechanism import ProcessingMechanism_Base
 from psyneulink.components.states.outputstate import PRIMARY, StandardOutputStates, standard_output_states
 from psyneulink.globals.context import ContextFlags
-from psyneulink.globals.keywords import FUNCTION, INITIALIZING, INPUT_STATES, LEABRA_FUNCTION, LEABRA_FUNCTION_TYPE,\
-    LEABRA_MECHANISM, NETWORK, OUTPUT_STATES, kwPreferenceSetName
+from psyneulink.globals.keywords import FUNCTION, INPUT_STATES, LEABRA_FUNCTION, LEABRA_FUNCTION_TYPE, LEABRA_MECHANISM, NETWORK, OUTPUT_STATES, kwPreferenceSetName
 from psyneulink.globals.preferences.componentpreferenceset import is_pref_set, kpReportOutputPref
 from psyneulink.globals.preferences.preferenceset import PreferenceEntry, PreferenceLevel
 from psyneulink.scheduling.time import TimeScale
@@ -199,7 +198,7 @@ class LeabraFunction(Function_Base):
 
     paramClassDefaults = Function_Base.paramClassDefaults.copy()
 
-    class ClassDefaults(Function_Base.ClassDefaults):
+    class Params(Function_Base.Params):
         variable = [[0], [0]]
 
     def __init__(self,

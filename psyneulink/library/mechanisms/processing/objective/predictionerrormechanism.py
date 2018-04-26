@@ -258,7 +258,7 @@ class PredictionErrorMechanism(ComparatorMechanism):
         kpReportOutputPref: PreferenceEntry(False, PreferenceLevel.INSTANCE)
     }
 
-    class ClassDefaults(ComparatorMechanism.ClassDefaults):
+    class Params(ComparatorMechanism.Params):
         variable = None
 
     paramClassDefaults = ComparatorMechanism.paramClassDefaults.copy()
