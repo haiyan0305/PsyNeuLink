@@ -608,6 +608,10 @@ class Function_Base(Function):
     # Note: the following enforce encoding as 1D np.ndarrays (one array per variable)
     variableEncodingDim = 1
 
+    class ClassDefaults(Function.ClassDefaults):
+        function_output_type = None
+        function_output_type_conversion = False
+
     paramClassDefaults = Function.paramClassDefaults.copy()
     paramClassDefaults.update({
         FUNCTION_OUTPUT_TYPE_CONVERSION: False,  # Enable/disable output type conversion
@@ -2933,6 +2937,11 @@ class Linear(TransferFunction):  # ---------------------------------------------
         kpReportOutputPref: PreferenceEntry(False, PreferenceLevel.INSTANCE),
     }
 
+    class ClassDefaults(TransferFunction.ClassDefaults):
+        # Params
+        slope = 1.0
+        intercept = 0.0
+
     paramClassDefaults = Function_Base.paramClassDefaults.copy()
     paramClassDefaults.update({
         FUNCTION_OUTPUT_TYPE_CONVERSION: True,
@@ -4556,6 +4565,11 @@ class Integrator(IntegratorFunction):  # ---------------------------------------
 
     componentName = INTEGRATOR_FUNCTION
 
+    class ClassDefaults(IntegratorFunction.ClassDefaults):
+        noise = 0.0
+        rate = 1.0
+        previous_value = None
+
     paramClassDefaults = Function_Base.paramClassDefaults.copy()
     # paramClassDefaults.update({INITIALIZER: ClassDefaults.variable})
     paramClassDefaults.update({
@@ -5352,6 +5366,11 @@ class ConstantIntegrator(Integrator):  # ---------------------------------------
     """
 
     componentName = CONSTANT_INTEGRATOR_FUNCTION
+
+    class ClassDefaults(Integrator.ClassDefaults):
+        # Params
+        offset = 0.0
+        scale = 1.0
 
     paramClassDefaults = Function_Base.paramClassDefaults.copy()
     # paramClassDefaults.update({INITIALIZER: ClassDefaults.variable})
@@ -7201,6 +7220,9 @@ class AccumulatorIntegrator(Integrator):  # ------------------------------------
     """
 
     componentName = ACCUMULATOR_INTEGRATOR_FUNCTION
+
+    class ClassDefaults(Integrator.ClassDefaults):
+        increment = None
 
     paramClassDefaults = Function_Base.paramClassDefaults.copy()
     # paramClassDefaults.update({INITIALIZER: ClassDefaults.variable})
