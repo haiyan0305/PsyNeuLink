@@ -672,6 +672,7 @@ def get_alias_property_setter(name, attr=None):
 
 class ParamsSpec:
     _deepcopy_shared_keys = ['_owner']
+    _values_default_excluded_attrs = {'user': False}
 
     def __repr__(self):
         return '{0} :\n{1}'.format(super().__repr__(), str(self))
@@ -684,14 +685,30 @@ class ParamsSpec:
     def __iter__(self):
         return iter([getattr(self, k) for k in self.values(show_all=True).keys()])
 
-    def values(self):
-        return {
-            k: getattr(self, k) for k in dir(self) + dir(type(self))
-            if (k[:1] != '_' and not isinstance(getattr(self, k), (types.MethodType, types.BuiltinMethodType)))
-        }
+    def values(self, show_all=False):
+        source_keys = dir(self) + dir(type(self))
+        result = {}
+        for k in source_keys:
+            # exclude "hidden" attrs
+            if k[0] is not '_':
+                val = getattr(self, k)
 
-    def show(self):
-        vals = self.values()
+                # exclude methods
+                if not isinstance(val, (types.MethodType, types.BuiltinMethodType)):
+                    if show_all:
+                        result[k] = val
+                    else:
+                        # exclude any values that have an attribute/value pair listed in ParamsSpec._values_default_excluded_attrs
+                        for excluded_key, excluded_val in self._values_default_excluded_attrs.items():
+                            if hasattr(val, excluded_key) and getattr(val, excluded_key) == excluded_val:
+                                break
+                        else:
+                            result[k] = val
+
+        return result
+
+    def show(self, show_all=False):
+        vals = self.values(show_all=show_all)
         return '(\n\t{0}\n)'.format('\n\t'.join(sorted(['{0} = {1},'.format(k, vals[k]) for k in vals])))
 
 

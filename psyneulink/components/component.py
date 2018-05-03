@@ -487,8 +487,8 @@ class ClassDefaults(ParamsSpec):
         else:
             super().__setattr__(attr, value)
 
-    def values(self):
-        return {k: v.default_value for (k, v) in self._owner.parameters.values().items()}
+    def values(self, show_all=False):
+        return {k: v.default_value for (k, v) in self._owner.parameters.values(show_all=show_all).items()}
 
 
 class InstanceDefaults(ParamsSpec):
@@ -584,10 +584,10 @@ parameter_keywords = set()
 
 
 class Param(types.SimpleNamespace):
-    def __init__(self, default_value=None, name=None, stateful=True, read_only=False, aliases=None, _aliases=None, _owner=None):
+    def __init__(self, default_value=None, name=None, stateful=True, read_only=False, aliases=None, user=True, _owner=None):
         if isinstance(aliases, str):
             aliases = [aliases]
-        super().__init__(default_value=default_value, name=name, stateful=stateful, read_only=read_only, aliases=aliases, _aliases=_aliases, _owner=_owner)
+        super().__init__(default_value=default_value, name=name, stateful=stateful, read_only=read_only, aliases=aliases, user=user, _owner=_owner)
 
     def __repr__(self):
         # modified from types.SimpleNamespace to exclude _-prefixed attrs
@@ -844,12 +844,13 @@ class Component(object, metaclass=ComponentsMeta):
     class Params(ParamsSpec):
         variable = Param(np.array([0]), read_only=True)
         function = None
+        context = Param(None, user=False)
 
         def __init__(self, owner, parent=None, **kwargs):
             self._parent = parent
             self._owner = owner
 
-            for param_name, param_value in self.values().items():
+            for param_name, param_value in self.values(show_all=True).items():
                 # create instance attrs for class attrs
                 if isinstance(param_value, Param):
                     if param_value.name is None:
