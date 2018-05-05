@@ -474,7 +474,7 @@ class DefaultsFlexibility(Enum):
     INCREASE_DIMENSION = 2
 
 
-class ClassDefaults(ParamsSpec):
+class Defaults(ParamsSpec):
     def __init__(self, owner):
         self._owner = owner
 
@@ -502,7 +502,7 @@ class InstanceDefaults(ParamsSpec):
         else:
             self._class_defaults = class_defaults
 
-        for k, v in self._class_defaults.values().items():
+        for k, v in self._class_defaults.values(show_all=True).items():
             try:
                 setattr(self, k, kwargs[k])
             except KeyError:
@@ -657,7 +657,7 @@ class ComponentsMeta(type):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.ClassDefaults = ClassDefaults(owner=self)
+        self.ClassDefaults = Defaults(owner=self)
         try:
             parent = self.__mro__[1].parameters
         except AttributeError:
@@ -987,6 +987,8 @@ class Component(object, metaclass=ComponentsMeta):
             default_variable = v
             defaults[VARIABLE] = default_variable
 
+        self.parameters = self.Params(owner=self, parent=self.class_parameters)
+        self.idefaults = Defaults(owner=self)
         self.instance_defaults = InstanceDefaults(owner=self, class_defaults=self.ClassDefaults, **defaults)
 
         # These ensure that subclass values are preserved, while allowing them to be referred to below
@@ -3121,6 +3123,11 @@ class Component(object, metaclass=ComponentsMeta):
     @function_params.setter
     def function_params(self, val):
         self.user_params.__additem__(FUNCTION_PARAMS, val)
+
+    @property
+    def class_parameters(self):
+        return self.__class__.parameters
+
 
 COMPONENT_BASE_CLASS = Component
 
