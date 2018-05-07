@@ -851,38 +851,7 @@ class Component(object, metaclass=ComponentsMeta):
             self._owner = owner
 
             for param_name, param_value in self.values(show_all=True).items():
-                # create instance attrs for class attrs
-                if isinstance(param_value, Param):
-                    if param_value.name is None:
-                        param_value.name = param_name
-
-                    if param_name in self.__class__.__dict__:
-                        # this is true when param_name was explicitly
-                        # created as an attribute on the class, which means
-                        # it's overriding inherited behavior
-                        setattr(self, param_name, param_value)
-
-                    if param_value.aliases is not None:
-                        for alias in param_value.aliases:
-                            if not hasattr(self, alias):
-                                setattr(self, alias, ParamAlias(source=getattr(self, param_name), name=alias))
-
-                elif isinstance(param_value, ParamAlias):
-                    if param_value.name is None:
-                        param_value.name = param_name
-                    if isinstance(param_value.source, str):
-                        try:
-                            param_value.source = getattr(self, param_value.source)
-                            param_value.source._register_alias(param_name)
-                        except AttributeError:
-                            # developer error
-                            raise ComponentError(
-                                '{0}: Attempted to create an alias named {1} to {2} but attr {2} does not exist'.format(
-                                    self, param_name, param_value.source
-                                )
-                            )
-                else:
-                    setattr(self, param_name, Param(name=param_name, default_value=param_value, _owner=self))
+                setattr(self, param_name, param_value)
 
             for param in kwargs:
                 setattr(self, param, kwargs[param])
@@ -894,6 +863,42 @@ class Component(object, metaclass=ComponentsMeta):
                 raise AttributeError(
                     'No parameter named \'{0}\' found in the parameter hierarchy of {1}'.format(attr, self)
                 ) from None
+
+        def __setattr__(self, attr, value):
+            if attr in self._deepcopy_shared_keys:
+                super().__setattr__(attr, value)
+            else:
+                if isinstance(value, Param):
+                    if value.name is None:
+                        value.name = attr
+
+                    if attr in self.__class__.__dict__:
+                        # this is true when attr was explicitly
+                        # created as an attribute on the class, which means
+                        # it's overriding inherited behavior
+                        super().__setattr__(attr, value)
+
+                    if value.aliases is not None:
+                        for alias in value.aliases:
+                            if not hasattr(self, alias):
+                                super().__setattr__(alias, ParamAlias(source=getattr(self, attr), name=alias))
+
+                elif isinstance(value, ParamAlias):
+                    if value.name is None:
+                        value.name = attr
+                    if isinstance(value.source, str):
+                        try:
+                            value.source = getattr(self, value.source)
+                            value.source._register_alias(attr)
+                        except AttributeError:
+                            # developer error
+                            raise ComponentError(
+                                '{0}: Attempted to create an alias named {1} to {2} but attr {2} does not exist'.format(
+                                    self, attr, value.source
+                                )
+                            )
+                else:
+                    super().__setattr__(attr, Param(name=attr, default_value=value, _owner=self))
 
     initMethod = INIT_FULL_EXECUTE_METHOD
 

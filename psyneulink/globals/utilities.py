@@ -671,7 +671,7 @@ def get_alias_property_setter(name, attr=None):
 
 
 class ParamsSpec:
-    _deepcopy_shared_keys = ['_owner']
+    _deepcopy_shared_keys = ['_owner', '_parent']
     _values_default_excluded_attrs = {'user': False}
 
     def __repr__(self):
