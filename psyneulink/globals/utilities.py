@@ -686,11 +686,15 @@ class ParamsSpec:
         return iter([getattr(self, k) for k in self.values(show_all=True).keys()])
 
     def values(self, show_all=False):
-        source_keys = dir(self) + dir(type(self))
+        try:
+            parent_keys = list(self._parent.values(show_all=True).keys())
+        except AttributeError:
+            parent_keys = dir(type(self))
+        source_keys = dir(self) + parent_keys
         result = {}
         for k in source_keys:
             # exclude "hidden" attrs
-            if k[0] is not '_':
+            if k not in result and k[0] is not '_':
                 val = getattr(self, k)
 
                 # exclude methods
