@@ -681,6 +681,9 @@ class ParamsSpec:
 
     __deepcopy__ = get_deepcopy_with_shared_keys(_deepcopy_shared_keys)
 
+    def __iter__(self):
+        return iter([getattr(self, k) for k in self.values(show_all=True).keys()])
+
     def values(self):
         return {
             k: getattr(self, k) for k in dir(self) + dir(type(self))
