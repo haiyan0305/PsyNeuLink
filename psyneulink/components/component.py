@@ -475,9 +475,6 @@ class DefaultsFlexibility(Enum):
 
 
 class Defaults(ParamsSpec):
-    def __init__(self, owner):
-        self._owner = owner
-
     def __getattr__(self, attr):
         return getattr(self._owner.parameters, attr).default_value
 
@@ -493,7 +490,6 @@ class Defaults(ParamsSpec):
 
 class InstanceDefaults(ParamsSpec):
     def __init__(self, owner, class_defaults=None, **kwargs):
-        self._owner = owner
         if class_defaults is None:
             try:
                 self._class_defaults = owner.ClassDefaults
@@ -507,6 +503,8 @@ class InstanceDefaults(ParamsSpec):
                 setattr(self, k, kwargs[k])
             except KeyError:
                 setattr(self, k, v)
+
+        super().__init__(owner)
 
 # Prototype for implementing params as objects rather than dicts
 # class Params(object):
@@ -584,16 +582,72 @@ parameter_keywords = set()
 
 
 class Param(types.SimpleNamespace):
-    def __init__(self, default_value=None, name=None, stateful=True, read_only=False, aliases=None, user=True, _owner=None):
+    _uninherited_attributes = {'name'}
+
+    def __init__(
+        self,
+        default_value=None,
+        name=None,
+        stateful=True,
+        read_only=False,
+        aliases=None,
+        user=True,
+        _owner=None,
+        _inherited=False
+    ):
         if isinstance(aliases, str):
             aliases = [aliases]
-        super().__init__(default_value=default_value, name=name, stateful=stateful, read_only=read_only, aliases=aliases, user=user, _owner=_owner)
+
+        super().__init__(
+            default_value=default_value,
+            name=name,
+            stateful=stateful,
+            read_only=read_only,
+            aliases=aliases,
+            user=user,
+            _owner=_owner,
+            _inherited=_inherited
+        )
+
+        self._param_attrs = [
+            k for k in self.__dict__ if (
+                k[0] != '_'
+                and not isinstance(getattr(self, k), (types.BuiltinMethodType, types.MethodType))
+            )
+        ]
+
+        self._inherited_attributes_cache = {}
+        self.__inherited = False
+        self._inherited = _inherited
 
     def __repr__(self):
         # modified from types.SimpleNamespace to exclude _-prefixed attrs
-        keys = sorted({k for k in self.__dict__ if k[0] != '_'})
-        items = ("{}={!r}".format(k, self.__dict__[k]) for k in keys)
+        items = ("{}={!r}".format(k, getattr(self, k)) for k in sorted(self._param_attrs))
         return "{}({})".format(type(self).__name__, ", ".join(items))
+
+    def __getattr__(self, attr):
+        try:
+            return getattr(self._parent, attr)
+        except AttributeError:
+            raise AttributeError("Param '%s' has no attribute '%s'" % (self.name, attr)) from None
+
+    def reset(self):
+        # try to reset this to the value to the value specified explicitly
+        # by its Params class. otherwise, inherit
+        try:
+            self.default_value = self._owner.__class__.__dict__[self.name].default_value
+        except (AttributeError, KeyError):
+            try:
+                self.default_value = self._owner.__class__.__dict__[self.name]
+            except KeyError:
+                if self._parent is not None:
+                    self._inherited = True
+                else:
+                    raise ComponentError(
+                        'Param {0} cannot be reset, as it does not have a default specification'
+                        'or a parent. This may occur if it was added dynamically rather than in an'
+                        'explict Params inner class on a Component'
+                    )
 
     def _register_alias(self, name):
         if self.aliases is None:
@@ -601,14 +655,40 @@ class Param(types.SimpleNamespace):
         elif name not in self.aliases:
             self.aliases.append(name)
 
+    @property
+    def _inherited(self):
+        return self.__inherited
+
+    @_inherited.setter
+    def _inherited(self, value):
+        if value is not self._inherited:
+            if value:
+                for attr in self._param_attrs:
+                    if attr not in self._uninherited_attributes:
+                        self._inherited_attributes_cache[attr] = getattr(self, attr)
+                        delattr(self, attr)
+            else:
+                for attr in self._param_attrs:
+                    if attr not in self._uninherited_attributes:
+                        setattr(self, attr, self._inherited_attributes_cache[attr])
+            self.__inherited = value
+
+    @property
+    def _parent(self):
+        try:
+            return getattr(self._owner._parent, self.name)
+        except AttributeError:
+            return None
+
 
 class _ParamAliasMeta(type):
-    unshared_attrs = ['name', 'aliases']
+    # these will not be taken from the source
+    _unshared_attrs = ['name', 'aliases']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for k in Param().__dict__:
-            if k not in self.unshared_attrs:
+            if k not in self._unshared_attrs:
                 setattr(
                     self,
                     k,
@@ -848,11 +928,22 @@ class Component(object, metaclass=ComponentsMeta):
         context = Param(None, user=False)
 
         def __init__(self, owner, parent=None, **kwargs):
-            self._parent = parent
-            self._owner = owner
+            super().__init__(owner=owner, parent=parent)
 
             for param_name, param_value in self.values(show_all=True).items():
-                setattr(self, param_name, param_value)
+                if (
+                    param_name in self.__class__.__dict__
+                    and (
+                        param_name not in self._parent.__class__.__dict__
+                        or self._parent.__class__.__dict__[param_name] is not self.__class__.__dict__[param_name]
+                    )
+                ):
+                    setattr(self, param_name, param_value)
+                else:
+                    if isinstance(getattr(self._parent, param_name), ParamAlias):
+                        setattr(self, param_name, ParamAlias(name=param_name, source=getattr(self._parent, param_name).source))
+                    else:
+                        setattr(self, param_name, Param(name=param_name, _owner=self, _inherited=True))
 
             for param in kwargs:
                 setattr(self, param, kwargs[param])
@@ -861,28 +952,29 @@ class Component(object, metaclass=ComponentsMeta):
             try:
                 return getattr(self._parent, attr)
             except AttributeError:
-                raise AttributeError(
-                    'No parameter named \'{0}\' found in the parameter hierarchy of {1}'.format(attr, self)
-                ) from None
+                raise AttributeError("No attribute '%s' exists in the parameter hierarchy" % attr) from None
 
         def __setattr__(self, attr, value):
-            if attr in self._deepcopy_shared_keys:
+            if not self._is_parameter(attr):
                 super().__setattr__(attr, value)
             else:
                 if isinstance(value, Param):
                     if value.name is None:
                         value.name = attr
 
-                    if attr in self.__class__.__dict__:
+                    # if attr in self.__class__.__dict__:
                         # this is true when attr was explicitly
                         # created as an attribute on the class, which means
                         # it's overriding inherited behavior
-                        super().__setattr__(attr, value)
+                    super().__setattr__(attr, value)
+
+                    value._owner = self
 
                     if value.aliases is not None:
                         for alias in value.aliases:
                             if not hasattr(self, alias):
                                 super().__setattr__(alias, ParamAlias(source=getattr(self, attr), name=alias))
+                                self._register_parameter(alias)
 
                 elif isinstance(value, ParamAlias):
                     if value.name is None:
@@ -901,6 +993,8 @@ class Component(object, metaclass=ComponentsMeta):
                     super().__setattr__(attr, value)
                 else:
                     super().__setattr__(attr, Param(name=attr, default_value=value, _owner=self))
+
+                self._register_parameter(attr)
 
     initMethod = INIT_FULL_EXECUTE_METHOD
 
@@ -991,6 +1085,7 @@ class Component(object, metaclass=ComponentsMeta):
 
         self.parameters = self.Params(owner=self, parent=self.class_parameters)
         self.idefaults = Defaults(owner=self)
+        # below maintains backwards compatibility with instance_defaults
         self.instance_defaults = InstanceDefaults(owner=self, class_defaults=self.ClassDefaults, **defaults)
 
         # These ensure that subclass values are preserved, while allowing them to be referred to below

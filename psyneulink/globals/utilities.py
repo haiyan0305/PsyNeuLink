@@ -671,8 +671,27 @@ def get_alias_property_setter(name, attr=None):
 
 
 class ParamsSpec:
-    _deepcopy_shared_keys = ['_owner', '_parent']
+    _deepcopy_shared_keys = ['_parent', '_params', '_owner', '_children']
     _values_default_excluded_attrs = {'user': False}
+
+    def __init__(self, owner, parent=None):
+        self._owner = owner
+        self._parent = parent
+        if isinstance(self._parent, ParamsSpec):
+            self._parent._children.add(self)
+
+        # create list of params currently existing
+        self._params = set()
+        try:
+            parent_keys = list(self._parent._params)
+        except AttributeError:
+            parent_keys = dir(type(self))
+        source_keys = dir(self) + parent_keys
+        for k in source_keys:
+            if self._is_parameter(k):
+                self._params.add(k)
+
+        self._children = set()
 
     def __repr__(self):
         return '{0} :\n{1}'.format(super().__repr__(), str(self))
@@ -685,29 +704,37 @@ class ParamsSpec:
     def __iter__(self):
         return iter([getattr(self, k) for k in self.values(show_all=True).keys()])
 
-    def values(self, show_all=False):
-        try:
-            parent_keys = list(self._parent.values(show_all=True).keys())
-        except AttributeError:
-            parent_keys = dir(type(self))
-        source_keys = dir(self) + parent_keys
-        result = {}
-        for k in source_keys:
-            # exclude "hidden" attrs
-            if k not in result and k[0] is not '_':
-                val = getattr(self, k)
+    def _is_parameter(self, param_name):
+        if param_name[0] is '_':
+            return False
+        else:
+            try:
+                return not isinstance(getattr(self, param_name), (types.MethodType, types.BuiltinMethodType))
+            except AttributeError:
+                return True
 
-                # exclude methods
-                if not isinstance(val, (types.MethodType, types.BuiltinMethodType)):
-                    if show_all:
-                        result[k] = val
-                    else:
-                        # exclude any values that have an attribute/value pair listed in ParamsSpec._values_default_excluded_attrs
-                        for excluded_key, excluded_val in self._values_default_excluded_attrs.items():
-                            if hasattr(val, excluded_key) and getattr(val, excluded_key) == excluded_val:
-                                break
-                        else:
-                            result[k] = val
+    def _register_parameter(self, param_name):
+        self._params.add(param_name)
+        for child in self._children:
+            child._register_parameter(param_name)
+
+    def values(self, show_all=False):
+        result = {}
+        for k in self._params:
+            val = getattr(self, k)
+
+            if show_all:
+                result[k] = val
+            else:
+                # exclude any values that have an attribute/value pair listed in ParamsSpec._values_default_excluded_attrs
+                for excluded_key, excluded_val in self._values_default_excluded_attrs.items():
+                    try:
+                        if getattr(val, excluded_key) == excluded_val:
+                            break
+                    except AttributeError:
+                        pass
+                else:
+                    result[k] = val
 
         return result
 
