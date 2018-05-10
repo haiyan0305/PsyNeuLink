@@ -898,6 +898,7 @@ class Component(object, metaclass=ComponentsMeta):
                                     self, attr, value.source
                                 )
                             )
+                    super().__setattr__(attr, value)
                 else:
                     super().__setattr__(attr, Param(name=attr, default_value=value, _owner=self))
 
