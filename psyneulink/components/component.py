@@ -582,7 +582,7 @@ parameter_keywords = set()
 
 
 class Param(types.SimpleNamespace):
-    _uninherited_attributes = {'name'}
+    _uninherited_attributes = {'name', 'values'}
 
     def __init__(
         self,
@@ -592,11 +592,15 @@ class Param(types.SimpleNamespace):
         read_only=False,
         aliases=None,
         user=True,
+        values=None,
         _owner=None,
         _inherited=False
     ):
         if isinstance(aliases, str):
             aliases = [aliases]
+
+        if values is None:
+            values = {}
 
         super().__init__(
             default_value=default_value,
@@ -605,6 +609,7 @@ class Param(types.SimpleNamespace):
             read_only=read_only,
             aliases=aliases,
             user=user,
+            values=values,
             _owner=_owner,
             _inherited=_inherited
         )
@@ -680,16 +685,13 @@ class Param(types.SimpleNamespace):
         except AttributeError:
             return None
 
-    def get(self, composition=None, execution_id=None):
+    def get(self, execution_id=None):
         '''
-            Gets the value of this `Param` in the context of **composition** and **execution_id**
-            If no composition is specified, attributes on the associated `Component` will be used
+            Gets the value of this `Param` in the context of **execution_id**
+            If no execution_id is specified, attributes on the associated `Component` will be used
 
             Arguments
             ---------
-
-                composition : `Composition`
-                    the Composition in which the value is stored
 
                 execution_id : UUID
                     the execution context associated with **composition** for which the value is stored
@@ -702,24 +704,18 @@ class Param(types.SimpleNamespace):
                 'Params instance that belongs to a Component'.format(self)
             )
 
-        if composition is None:
+        if execution_id is None:
             try:
                 return getattr(owning_component, self.name)
             except AttributeError:
                 return self.default_value
         else:
-            if execution_id is None:
-                execution_id = composition.execution_id
-
             try:
-                if self.name not in composition.params_by_execution_id[execution_id][owning_component]:
-                    self.set(self.name, self.default_value, composition=composition, execution_id=execution_id)
+                return self.values[execution_id]
+            except KeyError:
+                raise ComponentError('Param \'{0}\' has no value for execution_id {1}'.format(self.name, execution_id))
 
-                return composition.params_by_execution_id[execution_id][self][self.name]
-            except KeyError as e:
-                raise ComponentError('Key not found in {0}.params_by_execution_id: {1}'.format(composition, e))
-
-    def set(self, value, composition=None, execution_id=None, override=False):
+    def set(self, value, execution_id=None, override=False):
         if self.read_only and not override:
             raise ComponentError('Param \'{0}\' is read-only'.format(self.name))
         try:
@@ -730,20 +726,10 @@ class Param(types.SimpleNamespace):
                 'Params instance that belongs to a Component'.format(self)
             )
 
-        if composition is None:
+        if execution_id is None:
             setattr(owning_component, self.name, value)
         else:
-            if execution_id is None:
-                execution_id = composition._execution_id
-
-            # create dictionaries as necessary if not existent
-            if execution_id not in composition.params_by_execution_id:
-                composition.params_by_execution_id[execution_id] = {}
-
-            if owning_component not in composition.params_by_execution_id[execution_id]:
-                composition.params_by_execution_id[execution_id][owning_component] = {}
-
-            composition.params_by_execution_id[execution_id][owning_component][self.name] = value
+            self.values[execution_id] = value
 
 
 class _ParamAliasMeta(type):
