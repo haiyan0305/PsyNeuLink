@@ -1153,6 +1153,7 @@ class LearningMechanism(AdaptiveMechanism_Base):
     def _execute(
         self,
         variable=None,
+        execution_id=None,
         runtime_params=None,
         context=None
     ):
@@ -1186,6 +1187,7 @@ class LearningMechanism(AdaptiveMechanism_Base):
             variable[ERROR_OUTPUT_INDEX] = error_signal_input
             learning_signal, error_signal = super()._execute(
                 variable=variable,
+                execution_id=execution_id,
                 error_matrix=error_matrix,
                 runtime_params=runtime_params,
                 context=context

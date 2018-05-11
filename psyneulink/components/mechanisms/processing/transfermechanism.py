@@ -955,9 +955,11 @@ class TransferMechanism(ProcessingMechanism_Base):
         return current_input
 
     def _execute(self,
-                 variable=None,
-                 runtime_params=None,
-                 context=None):
+        variable=None,
+        execution_id=None,
+        runtime_params=None,
+        context=None
+    ):
         """Execute TransferMechanism function and return transform of input
 
         Execute TransferMechanism function on input, and assign to output_values:
@@ -1027,6 +1029,7 @@ class TransferMechanism(ProcessingMechanism_Base):
             for elem in current_input:
                 output_item = super(Mechanism, self)._execute(
                     variable=elem,
+                    execution_id=execution_id,
                     runtime_params=runtime_params,
                     context=context
                 )
@@ -1036,6 +1039,7 @@ class TransferMechanism(ProcessingMechanism_Base):
         else:
             outputs = super(Mechanism, self)._execute(
                 variable=current_input,
+                execution_id=execution_id,
                 runtime_params=runtime_params,
                 context=context
             )

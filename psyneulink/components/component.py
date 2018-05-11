@@ -2880,10 +2880,10 @@ class Component(object, metaclass=ComponentsMeta):
     def initialize(self):
         raise ComponentError("{} class does not support initialize() method".format(self.__class__.__name__))
 
-    def execute(self, variable=None, runtime_params=None, context=None):
-        return self._execute(variable=variable, runtime_params=runtime_params, context=context)
+    def execute(self, variable=None, execution_id=None, runtime_params=None, context=None):
+        return self._execute(variable=variable, execution_id=execution_id, runtime_params=runtime_params, context=context)
 
-    def _execute(self, variable=None, runtime_params=None, context=None, **kwargs):
+    def _execute(self, variable=None, execution_id=None, runtime_params=None, context=None, **kwargs):
 
         # GET/SET CONTEXT
 
@@ -2920,7 +2920,7 @@ class Component(object, metaclass=ComponentsMeta):
         #                     that are specific to particular class of Functions
         #                     (e.g., error_matrix for LearningMechanism and controller for EVCControlMechanism)
         function_variable = self._parse_function_variable(variable)
-        value = self.function(variable=function_variable, params=runtime_params, context=context, **kwargs)
+        value = self.function(variable=function_variable, execution_id=execution_id, params=runtime_params, context=context, **kwargs)
         fct_context_attrib.execution_phase = ContextFlags.IDLE
 
         return value

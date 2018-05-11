@@ -885,6 +885,7 @@ class ControlMechanism(AdaptiveMechanism_Base):
     def _execute(
         self,
         variable=None,
+        execution_id=None,
         runtime_params=None,
         context=None
     ):

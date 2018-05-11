@@ -67,7 +67,7 @@ from psyneulink.components.projections.projection import projection_keywords
 from psyneulink.components.shellclasses import Mechanism
 from psyneulink.components.states.outputstate import OutputState
 from psyneulink.globals.context import ContextFlags
-from psyneulink.globals.keywords import DEFAULT_MATRIX, MATRIX, FUNCTION_PARAMS, MASKED_MAPPING_PROJECTION
+from psyneulink.globals.keywords import DEFAULT_MATRIX, FUNCTION_PARAMS, MASKED_MAPPING_PROJECTION, MATRIX
 from psyneulink.globals.preferences.componentpreferenceset import is_pref_set
 from psyneulink.globals.preferences.preferenceset import PreferenceLevel
 

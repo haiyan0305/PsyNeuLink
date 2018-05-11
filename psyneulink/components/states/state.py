@@ -1850,7 +1850,7 @@ class State_Base(State):
         raise StateError("PROGRAM ERROR: {} does not implement _parse_state_specific_specs method".
                          format(self.__class__.__name__))
 
-    def update(self, params=None, context=None):
+    def update(self, execution_id=None, params=None, context=None):
         """Update each projection, combine them, and assign return result
 
         Call update for each projection in self.path_afferents (passing specified params)
@@ -2040,7 +2040,7 @@ class State_Base(State):
         except (KeyError, TypeError):
             function_params = None
 
-        self.value = self.execute(runtime_params=function_params, context=context)
+        self.value = self.execute(execution_id=execution_id, runtime_params=function_params, context=context)
 
     def _get_value_label(self, labels_dict, all_states):
         subdicts = False

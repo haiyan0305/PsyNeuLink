@@ -257,6 +257,7 @@ class LeabraFunction(Function_Base):
 
     def function(self,
                  variable=None,
+                 execution_id=None,
                  params=None,
                  context=None):
         variable = self._update_variable(self._check_args(variable=variable, params=params, context=context))
@@ -502,6 +503,7 @@ class LeabraMechanism(ProcessingMechanism_Base):
     def _execute(
         self,
         variable=None,
+        execution_id=None,
         runtime_params=None,
         time_scale=TimeScale.TRIAL,
         # ignore_execution_id=False,
@@ -515,6 +517,7 @@ class LeabraMechanism(ProcessingMechanism_Base):
 
         return super()._execute(
             variable=variable,
+            execution_id=execution_id,
             runtime_params=runtime_params,
             # ignore_execution_id=ignore_execution_id,
             context=context

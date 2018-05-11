@@ -930,12 +930,12 @@ class ControlSignal(ModulatorySignal):
 
         return state_spec, params_dict
 
-    def update(self, params=None, context=None):
-        super().update(params=params, context=context)
+    def update(self, execution_id=None, params=None, context=None):
+        super().update(execution_id=execution_id, params=params, context=context)
         self._compute_costs()
 
-    def _execute(self, variable=None, runtime_params=None, context=None):
-        return float(super()._execute(variable=variable, runtime_params=runtime_params, context=context))
+    def _execute(self, variable=None, execution_id=None, runtime_params=None, context=None):
+        return float(super()._execute(variable=variable, execution_id=execution_id, runtime_params=runtime_params, context=context))
 
     def _compute_costs(self):
         """Compute costs based on self.value."""
