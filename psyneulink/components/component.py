@@ -631,6 +631,8 @@ class Param(types.SimpleNamespace):
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
     def __getattr__(self, attr):
+        # runs when the object doesn't have an attr attribute itself
+        # attempt to get from its parent, which is also a Param
         try:
             return getattr(self._parent, attr)
         except AttributeError:
@@ -1006,6 +1008,8 @@ class Component(object, metaclass=ComponentsMeta):
                 raise AttributeError("No attribute '%s' exists in the parameter hierarchy" % attr) from None
 
         def __setattr__(self, attr, value):
+            # handles parsing: Param or ParamAlias housekeeping if assigned, or creation of a Param
+            # if just a value is assigned
             if not self._is_parameter(attr):
                 super().__setattr__(attr, value)
             else:
@@ -1013,13 +1017,8 @@ class Component(object, metaclass=ComponentsMeta):
                     if value.name is None:
                         value.name = attr
 
-                    # if attr in self.__class__.__dict__:
-                        # this is true when attr was explicitly
-                        # created as an attribute on the class, which means
-                        # it's overriding inherited behavior
-                    super().__setattr__(attr, value)
-
                     value._owner = self
+                    super().__setattr__(attr, value)
 
                     if value.aliases is not None:
                         for alias in value.aliases:
