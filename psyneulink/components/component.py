@@ -689,6 +689,16 @@ class Param(types.SimpleNamespace):
         except AttributeError:
             return None
 
+    @property
+    def _default_getter_kwargs(self):
+        try:
+            # self._owner: the Params object it belongs to
+            # self._owner._owner: the Component the Params object belongs to
+            # self._owner._owner.owner: that Component's owner if it exists
+            return {'owner': self._owner._owner.owner}
+        except AttributeError:
+            return {}
+
     def get(self, execution_id=None, **kwargs):
         '''
             Gets the value of this `Param` in the context of **execution_id**
@@ -723,6 +733,8 @@ class Param(types.SimpleNamespace):
                 raise ComponentError('Param \'{0}\' has no value for execution_id {1}'.format(self.name, execution_id))
 
         if self.getter is not None:
+            kwargs = {**self._default_getter_kwargs, **kwargs}
+            _, kwargs = prune_unused_args(self.getter, kwargs=kwargs)
             return self.getter(result, **kwargs)
         else:
             return result
