@@ -593,6 +593,7 @@ class Param(types.SimpleNamespace):
         aliases=None,
         user=True,
         values=None,
+        getter=None,
         _owner=None,
         _inherited=False
     ):
@@ -610,6 +611,7 @@ class Param(types.SimpleNamespace):
             aliases=aliases,
             user=user,
             values=values,
+            getter=getter,
             _owner=_owner,
             _inherited=_inherited
         )
@@ -687,7 +689,7 @@ class Param(types.SimpleNamespace):
         except AttributeError:
             return None
 
-    def get(self, execution_id=None):
+    def get(self, execution_id=None, **kwargs):
         '''
             Gets the value of this `Param` in the context of **execution_id**
             If no execution_id is specified, attributes on the associated `Component` will be used
@@ -697,6 +699,9 @@ class Param(types.SimpleNamespace):
 
                 execution_id : UUID
                     the execution context associated with **composition** for which the value is stored
+
+                kwargs
+                    any additional arguments to be passed to this `Param`'s `getter` if it is set
         '''
         try:
             owning_component = self._owner._owner
@@ -708,14 +713,19 @@ class Param(types.SimpleNamespace):
 
         if execution_id is None:
             try:
-                return getattr(owning_component, self.name)
+                result = getattr(owning_component, self.name)
             except AttributeError:
-                return self.default_value
+                result = self.default_value
         else:
             try:
-                return self.values[execution_id]
+                result = self.values[execution_id]
             except KeyError:
                 raise ComponentError('Param \'{0}\' has no value for execution_id {1}'.format(self.name, execution_id))
+
+        if self.getter is not None:
+            return self.getter(result, **kwargs)
+        else:
+            return result
 
     def set(self, value, execution_id=None, override=False):
         if self.read_only and not override:
