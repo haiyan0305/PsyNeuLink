@@ -992,7 +992,19 @@ class Component(object, metaclass=ComponentsMeta):
                             )
                     super().__setattr__(attr, value)
                 else:
-                    super().__setattr__(attr, Param(name=attr, default_value=value, _owner=self))
+                    # assign value to default_value
+                    if hasattr(self, attr) and isinstance(getattr(self, attr), Param):
+                        current_param = getattr(self, attr)
+                        # construct a copy because the original may be used as a base for reset()
+                        new_param = copy.deepcopy(current_param)
+                        # set _inherited before default_value because it will
+                        # restore from cache
+                        new_param._inherited = False
+                        new_param.default_value = value
+                    else:
+                        new_param = Param(name=attr, default_value=value, _owner=self)
+
+                    super().__setattr__(attr, new_param)
 
                 self._register_parameter(attr)
 
